@@ -35,23 +35,31 @@ export function toggleObserving (value: boolean) {
  * collect dependencies and dispatch updates.
  */
 export class Observer {
+  // 观测对象
   value: any;
+  // 依赖对象
   dep: Dep;
+  // 实例计数器
   vmCount: number; // number of vms that have this object as root $data
 
   constructor (value: any) {
     this.value = value
     this.dep = new Dep()
+    // 初始化实例的vmCount为0
     this.vmCount = 0
+    // 将实例挂载到观测对象的 __ob__ 属性，通过defineProperty方法定义，不可枚举的
     def(value, '__ob__', this)
+    // 数组的响应式处理
     if (Array.isArray(value)) {
       if (hasProto) {
         protoAugment(value, arrayMethods)
       } else {
         copyAugment(value, arrayMethods, arrayKeys)
       }
+      // 为数组中的每一个对象创建一个observer实例
       this.observeArray(value)
     } else {
+      // 遍历对象中的每一个属性，转换成setter/getter
       this.walk(value)
     }
   }
@@ -62,7 +70,9 @@ export class Observer {
    * value type is Object.
    */
   walk (obj: Object) {
+    // 获取观察对象的每个属性
     const keys = Object.keys(obj)
+    // 遍历每一个属性，设置为响应式数据
     for (let i = 0; i < keys.length; i++) {
       defineReactive(obj, keys[i])
     }
@@ -108,10 +118,12 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * or the existing observer if the value already has one.
  */
 export function observe (value: any, asRootData: ?boolean): Observer | void {
+  // 判断 value 是否是对象
   if (!isObject(value) || value instanceof VNode) {
     return
   }
   let ob: Observer | void
+  // 如果 value 有 __ob__(observer对象) 属性 结束
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__
   } else if (
@@ -121,6 +133,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
     Object.isExtensible(value) &&
     !value._isVue
   ) {
+    // 创建一个 Observer 对象
     ob = new Observer(value)
   }
   if (asRootData && ob) {
@@ -128,7 +141,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
   }
   return ob
 }
-
+// 为一个对象定义一个响应式的属性
 /**
  * Define a reactive property on an Object.
  */
@@ -137,41 +150,54 @@ export function defineReactive (
   key: string,
   val: any,
   customSetter?: ?Function,
-  shallow?: boolean
+  shallow?: boolean // 是否浅层，如果是则不观察子对象，如果不是浅层，则要递归观察子对象
 ) {
+  // 创建依赖对象实例，负责属性的依赖收集
   const dep = new Dep()
-
+  // 获取obj的属性描述对象
   const property = Object.getOwnPropertyDescriptor(obj, key)
+  // 当前属性不可配置，不可以delete删除，不可以通过defineProperty重新定义
   if (property && property.configurable === false) {
     return
   }
-
+  // 提供预定义的存取器函数
   // cater for pre-defined getter/setters
   const getter = property && property.get
   const setter = property && property.set
   if ((!getter || setter) && arguments.length === 2) {
     val = obj[key]
   }
-
+  // 判断是否递归观察子对象，并将子对象属性都转换成getter/setter，返回子观察对象
   let childOb = !shallow && observe(val)
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
+      // 如果预定义的getter存在则value等于getter调用的返回值
+      // 否则直接赋予属性值
       const value = getter ? getter.call(obj) : val
+      // 如果存在当前依赖目标，即watcher对象，则建立依赖
       if (Dep.target) {
+        // 将当前watcher对象添加到sub数组中
         dep.depend()
+        // 如果子观察目标存在，建立子对象的依赖关系
         if (childOb) {
+          // 给子对象添加依赖，目的是子对象有改变的时候可以发送通知更新视图
           childOb.dep.depend()
+          // 如果属性是数组，则特殊处理收集数组对象依赖
           if (Array.isArray(value)) {
             dependArray(value)
           }
         }
       }
+      // 返回属性值
       return value
     },
     set: function reactiveSetter (newVal) {
+      // 如果预定义的getter存在则value等于getter调用的返回值
+      // 否则直接赋予属性值
       const value = getter ? getter.call(obj) : val
+      // 如果新值等于旧值或者新值旧值为NaN则不执行，因为没有变化不需要发送通知
       /* eslint-disable no-self-compare */
       if (newVal === value || (newVal !== newVal && value !== value)) {
         return
@@ -180,6 +206,7 @@ export function defineReactive (
       if (process.env.NODE_ENV !== 'production' && customSetter) {
         customSetter()
       }
+      // 如果没有setter直接返回，只读的
       // #7981: for accessor properties without setter
       if (getter && !setter) return
       if (setter) {
@@ -187,7 +214,9 @@ export function defineReactive (
       } else {
         val = newVal
       }
+      // 如果新值是对象，观察子对象并返回子对象的observe对象
       childOb = !shallow && observe(newVal)
+      // 派发更新（发布更改通知）
       dep.notify()
     }
   })
