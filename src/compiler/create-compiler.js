@@ -5,6 +5,9 @@ import { detectErrors } from './error-detector'
 import { createCompileToFunctionFn } from './to-function'
 
 export function createCompilerCreator (baseCompile: Function): Function {
+  // baseOptions 平台相关的options
+  // src\platforms\web\compiler\options.js 中定义
+  // 将平台参数和用户传入的参数合并传递给createCompiler函数
   return function createCompiler (baseOptions: CompilerOptions) {
     function compile (
       template: string,
@@ -17,7 +20,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
       let warn = (msg, range, tip) => {
         (tip ? tips : errors).push(msg)
       }
-
+      // 如果options存在，合并baseOptions和options
       if (options) {
         if (process.env.NODE_ENV !== 'production' && options.outputSourceRange) {
           // $flow-disable-line
@@ -57,13 +60,14 @@ export function createCompilerCreator (baseCompile: Function): Function {
       }
 
       finalOptions.warn = warn
-
+      // 模板编译核心函数baseCompile
       const compiled = baseCompile(template.trim(), finalOptions)
       if (process.env.NODE_ENV !== 'production') {
         detectErrors(compiled.ast, warn)
       }
       compiled.errors = errors
       compiled.tips = tips
+      // 返回编译好的对象
       return compiled
     }
 

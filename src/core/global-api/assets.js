@@ -19,13 +19,19 @@ export function initAssetRegisters (Vue: GlobalAPI) {
         if (process.env.NODE_ENV !== 'production' && type === 'component') {
           validateComponentName(id)
         }
+        // Vue.component('comp', { template: '' })
+        // 第二个参数如果是对象，会调用Vue.extend方法
         if (type === 'component' && isPlainObject(definition)) {
           definition.name = definition.name || id
+          // 把组件配置转换为组件的构造函数
           definition = this.options._base.extend(definition)
         }
+        // 第二个参数如果是函数，会直接把函数记录到options['components']
         if (type === 'directive' && typeof definition === 'function') {
           definition = { bind: definition, update: definition }
         }
+        // 全局注册，存储资源并赋值
+        // this.options['components']['comp'] = definition
         this.options[type + 's'][id] = definition
         return definition
       }
